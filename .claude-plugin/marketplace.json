@@ -1,0 +1,27 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "shared-agent-skills",
+  "description": "Portable skills for routing AI leads, reviewers, executors, and session logs across hosted workflows.",
+  "owner": {
+    "name": "ramsaijanapana",
+    "url": "https://github.com/ramsaijanapana"
+  },
+  "plugins": [
+    {
+      "name": "agent-routing-orchestrator",
+      "source": "./plugins/agent-routing-orchestrator",
+      "description": "Choose which AI agents lead, review, and execute work across Codex, Claude Code, subagents, remote agents, and human-managed sessions.",
+      "version": "0.5.0",
+      "category": "development",
+      "homepage": "https://github.com/ramsaijanapana/shared-agent-skills",
+      "tags": [
+        "skill",
+        "agent-routing",
+        "codex",
+        "claude-code",
+        "code-review",
+        "delegation"
+      ]
+    }
+  ]
+}

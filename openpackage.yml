@@ -1,0 +1,10 @@
+name: shared-agent-skills
+version: 0.5.0
+description: Portable agent routing skill for choosing AI leads, reviewers, executors, and session logs across hosted workflows.
+author: ramsaijanapana
+license: MIT
+
+includes:
+  - plugins/agent-routing-orchestrator/**/*
+  - README.md
+  - docs/**/*

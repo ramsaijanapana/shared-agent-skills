@@ -1,0 +1,21 @@
+{
+  "name": "agent-routing-orchestrator",
+  "description": "Choose which AI agents lead, review, and execute work across hosted workflows.",
+  "version": "0.5.0",
+  "author": {
+    "name": "ramsaijanapana",
+    "url": "https://github.com/ramsaijanapana"
+  },
+  "homepage": "https://github.com/ramsaijanapana/shared-agent-skills",
+  "repository": "https://github.com/ramsaijanapana/shared-agent-skills",
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "codex",
+    "skill",
+    "agent-routing",
+    "delegation",
+    "code-review",
+    "session-log"
+  ]
+}
