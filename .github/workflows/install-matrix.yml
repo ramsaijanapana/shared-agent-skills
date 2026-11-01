@@ -1,0 +1,36 @@
+name: install-matrix
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: install-matrix-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  install-smoke:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Validate package structure
+        run: python scripts/validate.py
+
+      - name: Install script smoke tests
+        run: pytest -q tests/test_install_scripts.py

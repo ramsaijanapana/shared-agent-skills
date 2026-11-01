@@ -52,6 +52,8 @@ Use it when:
 
 Skip it when the task is a trivial one-shot command or a tiny local edit with no meaningful routing choice.
 
+Ready-made prompt templates live in [../skills/agent-routing-orchestrator/examples/](../skills/agent-routing-orchestrator/examples/).
+
 ## Minimal Prompt
 
 ```text
@@ -258,3 +260,78 @@ Before calling work complete, the lead should verify:
 - Executors had bounded ownership and returned completion packets.
 - The lead inspected diffs or artifacts directly.
 - Required tests or checks ran, or limitations were clearly reported.
+
+## Plugin install troubleshooting
+
+Use this section when Claude Code plugin installation does not behave as expected.
+
+### Marketplace add fails
+
+```text
+/plugin marketplace add ramsaijanapana/shared-agent-skills
+```
+
+If the command errors:
+
+1. **Confirm the repo slug** — use `ramsaijanapana/shared-agent-skills` (GitHub owner/repo, not a local path).
+2. **Check network and GitHub access** — the host must reach GitHub to read marketplace metadata.
+3. **Retry after updating Claude Code** — older builds may lack marketplace support or have stale caches.
+4. **Fallback: clone and validate locally** — clone the repo, run `python scripts/validate.py`, and use standalone install (`install.sh` / `install.ps1`) while you resolve the marketplace issue.
+
+### Plugin not loading after install
+
+After:
+
+```text
+/plugin install agent-routing-orchestrator@shared-agent-skills
+```
+
+the skill may not appear until plugins are reloaded or the session restarts.
+
+1. Run `/reload-plugins` (see below).
+2. Start a **new Claude Code session** if reload does not pick up the skill.
+3. Confirm install succeeded — the command should reference `agent-routing-orchestrator@shared-agent-skills` (plugin name `@` marketplace name).
+4. Trigger the skill explicitly: `Use agent-routing-orchestrator.` in your first prompt.
+
+### `/reload-plugins`
+
+Run after adding a marketplace or installing/updating a plugin:
+
+```text
+/reload-plugins
+```
+
+This refreshes Claude Code's plugin cache without restarting the editor. If behavior is still stale, restart Claude Code and try again.
+
+### Verifying skill file location
+
+Claude Code loads plugin skills from the installed plugin bundle, not from your clone. Expected layout inside the plugin:
+
+```text
+plugins/agent-routing-orchestrator/
+  .claude-plugin/plugin.json
+  skills/agent-routing-orchestrator/SKILL.md
+```
+
+For **standalone** installs (Codex, Claude user skills, `.agents`), the skill should land as:
+
+```text
+<skill-dir>/agent-routing-orchestrator/SKILL.md
+```
+
+Common user-level directories: `~/.claude/skills/`, `~/.codex/skills/`, `~/.agents/skills/`. Project-level paths include `.claude/skills/` and `.agents/skills/`. If the folder or `SKILL.md` is missing, re-run the installer or copy from `skills/agent-routing-orchestrator/` in the repo.
+
+### Running validate.py locally
+
+Before reporting a packaging bug, validate the tree you installed from:
+
+```bash
+git clone https://github.com/ramsaijanapana/shared-agent-skills.git
+cd shared-agent-skills
+python -m pip install -e ".[dev]"   # optional; stdlib is enough for validate.py
+python scripts/validate.py
+python scripts/sync_version.py --check
+python scripts/check_plugin_sync.py
+```
+
+`Validation passed.` means marketplace JSON, plugin manifest, version fields, and both `SKILL.md` copies are aligned. If validation fails, see [CONTRIBUTING.md — Troubleshooting validation failures](CONTRIBUTING.md#troubleshooting-validation-failures).

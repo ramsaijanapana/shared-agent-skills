@@ -1,17 +1,15 @@
 #!/usr/bin/env python3
 """Validate shared-agent-skills package structure."""
+
 from __future__ import annotations
 
+import argparse
+import json
 import re
 import sys
-import json
 from pathlib import Path
 
-
-ROOT = Path(__file__).resolve().parents[1]
-SKILLS_DIR = ROOT / "skills"
-PLUGIN_DIR = ROOT / "plugins" / "agent-routing-orchestrator"
-PLUGIN_SKILLS_DIR = PLUGIN_DIR / "skills"
+DEFAULT_ROOT = Path(__file__).resolve().parents[1]
 NAME_RE = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$")
 FORBIDDEN_PLUGIN_DIRS = (
     "agents",
@@ -35,7 +33,19 @@ FORBIDDEN_TEXT_PATTERNS = tuple(
 )
 EXPECTED_MARKETPLACE_NAME = "shared-agent-skills"
 EXPECTED_PLUGIN_NAME = "agent-routing-orchestrator"
+REQUIRED_SKILL_SECTIONS = (
+    "Start With A Routing Contract",
+    "Session Log",
+    "Context Packet",
+    "Completion Packet",
+    "Stop Rules",
+    "Final Integration",
+)
 VERSION_RE = re.compile(r'^\s*version:\s*"?([^"\n]+)"?\s*$')
+SKILL_VERSION_RE = re.compile(
+    r'^(\s*shared-agent-skills\.version:\s*)"?([^"\n]+)"?\s*$',
+    re.MULTILINE,
+)
 
 
 def parse_frontmatter(path: Path) -> dict[str, str]:
@@ -63,23 +73,48 @@ def parse_frontmatter(path: Path) -> dict[str, str]:
     return fields
 
 
-def read_json(path: Path, errors: list[str]) -> dict:
+def read_json(path: Path, root: Path, errors: list[str]) -> dict:
     if not path.is_file():
-        errors.append(f"missing {path.relative_to(ROOT)}")
+        errors.append(f"missing {path.relative_to(root)}")
         return {}
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
-        errors.append(f"{path.relative_to(ROOT)}: invalid JSON: {exc}")
+        errors.append(f"{path.relative_to(root)}: invalid JSON: {exc}")
         return {}
     if not isinstance(value, dict):
-        errors.append(f"{path.relative_to(ROOT)}: expected top-level JSON object")
+        errors.append(f"{path.relative_to(root)}: expected top-level JSON object")
         return {}
     return value
 
 
-def read_openpackage_version(errors: list[str]) -> str:
-    path = ROOT / "openpackage.yml"
+def skill_body_after_frontmatter(text: str) -> str:
+    if not text.startswith("---\n"):
+        return text
+    end = text.find("\n---\n", 4)
+    if end < 0:
+        return text
+    return text[end + 5 :]
+
+
+def h2_sections(body: str) -> set[str]:
+    return {line[3:].strip() for line in body.splitlines() if line.startswith("## ")}
+
+
+def validate_skill_required_sections(
+    skill_name: str, skill_md: Path, required: tuple[str, ...]
+) -> list[str]:
+    body = skill_body_after_frontmatter(skill_md.read_text(encoding="utf-8"))
+    present = h2_sections(body)
+    return [
+        f"{skill_name}: missing required section {section!r}"
+        for section in required
+        if section not in present
+    ]
+
+
+def read_openpackage_version(root: Path, errors: list[str]) -> str:
+    path = root / "openpackage.yml"
     if not path.is_file():
         errors.append("missing openpackage.yml")
         return ""
@@ -91,15 +126,18 @@ def read_openpackage_version(errors: list[str]) -> str:
     return ""
 
 
-def main() -> int:
+def validate_package(root: Path) -> list[str]:
     errors: list[str] = []
+    skills_dir = root / "skills"
+    plugin_dir = root / "plugins" / "agent-routing-orchestrator"
+    plugin_skills_dir = plugin_dir / "skills"
     skill_versions: dict[str, str] = {}
-    if not SKILLS_DIR.is_dir():
-        errors.append("missing skills/ directory")
-        print("\n".join(errors))
-        return 1
 
-    for skill_dir in sorted(p for p in SKILLS_DIR.iterdir() if p.is_dir()):
+    if not skills_dir.is_dir():
+        errors.append("missing skills/ directory")
+        return errors
+
+    for skill_dir in sorted(p for p in skills_dir.iterdir() if p.is_dir()):
         skill_md = skill_dir / "SKILL.md"
         if not skill_md.is_file():
             errors.append(f"{skill_dir.name}: missing SKILL.md")
@@ -135,23 +173,30 @@ def main() -> int:
         if len(body_lines) > 500:
             errors.append(f"{skill_dir.name}: SKILL.md exceeds 500 lines")
 
-    source_skill = SKILLS_DIR / "agent-routing-orchestrator" / "SKILL.md"
-    plugin_skill = PLUGIN_SKILLS_DIR / "agent-routing-orchestrator" / "SKILL.md"
+        if skill_dir.name == EXPECTED_PLUGIN_NAME:
+            errors.extend(
+                validate_skill_required_sections(skill_dir.name, skill_md, REQUIRED_SKILL_SECTIONS)
+            )
+
+    source_skill = skills_dir / "agent-routing-orchestrator" / "SKILL.md"
+    plugin_skill = plugin_skills_dir / "agent-routing-orchestrator" / "SKILL.md"
     if not plugin_skill.is_file():
         errors.append("plugin: missing agent-routing-orchestrator skill copy")
-    elif source_skill.is_file() and plugin_skill.read_text(encoding="utf-8") != source_skill.read_text(encoding="utf-8"):
+    elif source_skill.is_file() and plugin_skill.read_text(
+        encoding="utf-8"
+    ) != source_skill.read_text(encoding="utf-8"):
         errors.append("plugin: skill copy differs from skills/agent-routing-orchestrator/SKILL.md")
 
     for dirname in FORBIDDEN_PLUGIN_DIRS:
-        if (PLUGIN_DIR / dirname).exists():
+        if (plugin_dir / dirname).exists():
             errors.append(
                 f"plugin: unexpected {dirname}/ directory; this package should enhance the current skill, "
                 "not vendor command/runtime assets from another package"
             )
 
-    marketplace = read_json(ROOT / ".claude-plugin" / "marketplace.json", errors)
-    plugin_json = read_json(PLUGIN_DIR / ".claude-plugin" / "plugin.json", errors)
-    package_version = read_openpackage_version(errors)
+    marketplace = read_json(root / ".claude-plugin" / "marketplace.json", root, errors)
+    plugin_json = read_json(plugin_dir / ".claude-plugin" / "plugin.json", root, errors)
+    package_version = read_openpackage_version(root, errors)
     skill_version = skill_versions.get(EXPECTED_PLUGIN_NAME, "")
 
     if marketplace.get("name") != EXPECTED_MARKETPLACE_NAME:
@@ -167,7 +212,9 @@ def main() -> int:
     if plugin_entry.get("source") != "./plugins/agent-routing-orchestrator":
         errors.append(".claude-plugin/marketplace.json: plugin source mismatch")
     if plugin_json.get("name") != EXPECTED_PLUGIN_NAME:
-        errors.append("plugins/agent-routing-orchestrator/.claude-plugin/plugin.json: name mismatch")
+        errors.append(
+            "plugins/agent-routing-orchestrator/.claude-plugin/plugin.json: name mismatch"
+        )
 
     versions = {
         "skill": skill_version,
@@ -179,17 +226,33 @@ def main() -> int:
         rendered = ", ".join(f"{key}={value or '<missing>'}" for key, value in versions.items())
         errors.append(f"version mismatch: {rendered}")
 
-    for path in ROOT.rglob("*"):
+    for path in root.rglob("*"):
         if ".git" in path.parts or not path.is_file():
+            continue
+        if "__pycache__" in path.parts or ".venv" in path.parts or path.suffix in {".pyc", ".pyo"}:
             continue
         text = path.read_text(encoding="utf-8", errors="ignore")
         for pattern in FORBIDDEN_TEXT_PATTERNS:
             if pattern in text:
-                errors.append(f"{path.relative_to(ROOT)}: forbidden text pattern {pattern!r}")
+                errors.append(f"{path.relative_to(root)}: forbidden text pattern {pattern!r}")
 
     for required in ("README.md", "LICENSE", "install.ps1", "install.sh", "openpackage.yml"):
-        if not (ROOT / required).is_file():
+        if not (root / required).is_file():
             errors.append(f"missing {required}")
+
+    return errors
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Validate shared-agent-skills package structure.")
+    parser.add_argument(
+        "--root",
+        type=Path,
+        default=DEFAULT_ROOT,
+        help="Package root to validate (defaults to repository root).",
+    )
+    args = parser.parse_args(argv)
+    errors = validate_package(args.root.resolve())
 
     if errors:
         print("Validation failed:")

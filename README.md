@@ -1,5 +1,9 @@
 # Shared Agent Skills
 
+[![validate](https://github.com/ramsaijanapana/shared-agent-skills/actions/workflows/validate.yml/badge.svg)](https://github.com/ramsaijanapana/shared-agent-skills/actions/workflows/validate.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-0.5.0-blue.svg)](openpackage.yml)
+
 Portable `SKILL.md` skill and Claude Code plugin for choosing which AI agents should lead, review, execute, and log work across hosted workflows.
 
 This package is project-agnostic. It does not assume a specific model, provider, repository, operating system, or that Claude/Codex is always the lead.
@@ -167,7 +171,7 @@ The skill triggers from its `description` frontmatter.
 
 Use `agent-routing-orchestrator` when Claude, Codex, another coding agent, subagents, or external assistants need to be chosen as lead, co-lead, reviewer, or executor.
 
-For detailed examples, see [docs/USAGE.md](docs/USAGE.md). For the design principles behind the package, see [docs/DESIGN-PRINCIPLES.md](docs/DESIGN-PRINCIPLES.md).
+For detailed examples, see [docs/USAGE.md](docs/USAGE.md) and [skills/agent-routing-orchestrator/examples/](skills/agent-routing-orchestrator/examples/). For the design principles behind the package, see [docs/DESIGN-PRINCIPLES.md](docs/DESIGN-PRINCIPLES.md).
 
 ### Routing Contract Template
 
@@ -214,7 +218,15 @@ Next: immediate action or stop gate.
 
 ```bash
 python scripts/validate.py
+python scripts/sync_version.py --check
+python scripts/check_plugin_sync.py
+python -m pip install -e ".[dev]"
+pytest -q
 ```
+
+CI runs the same checks on every push and pull request to `main`.
+
+See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for skill conventions, version bumps, and the pull request checklist. Governance: [REVIEW-360.md](REVIEW-360.md), [IMPLEMENTATION-PLAN.md](IMPLEMENTATION-PLAN.md), [CODEGRAPH.md](CODEGRAPH.md). Release history: [CHANGELOG.md](CHANGELOG.md).
 
 ## Package Layout
 
@@ -226,6 +238,9 @@ plugins/agent-routing-orchestrator/
 skills/agent-routing-orchestrator/SKILL.md
 docs/
 scripts/validate.py
+scripts/sync_version.py
+scripts/check_plugin_sync.py
+tests/
 ```
 
 The standalone skill is the source of truth. Validation fails if the plugin copy drifts.

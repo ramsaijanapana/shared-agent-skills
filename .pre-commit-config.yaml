@@ -1,0 +1,35 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-added-large-files
+        args: ["--maxkb=512"]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.9.2
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: local
+    hooks:
+      - id: validate-package
+        name: validate package structure
+        entry: python scripts/validate.py
+        language: system
+        pass_filenames: false
+      - id: check-version-sync
+        name: check version sync
+        entry: python scripts/sync_version.py --check
+        language: system
+        pass_filenames: false
+      - id: check-plugin-sync
+        name: check plugin skill sync
+        entry: python scripts/check_plugin_sync.py
+        language: system
+        pass_filenames: false
