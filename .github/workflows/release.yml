@@ -46,7 +46,7 @@ jobs:
       - name: Verify tag matches package version
         run: |
           TAG="${GITHUB_REF_NAME#v}"
-          PKG_VERSION=$(python -c "from sync_version import read_openpackage_version; from pathlib import Path; print(read_openpackage_version(Path('.')))")
+          PKG_VERSION=$(PYTHONPATH=scripts python -c "from sync_version import read_openpackage_version; from pathlib import Path; print(read_openpackage_version(Path('.')))")
           if [ "$TAG" != "$PKG_VERSION" ]; then
             echo "Tag v$TAG does not match openpackage.yml version $PKG_VERSION"
             exit 1
